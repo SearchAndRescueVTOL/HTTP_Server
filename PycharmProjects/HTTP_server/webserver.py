@@ -14,7 +14,7 @@ if not os.path.exists(IMAGE_DIR):
 
 #upload image through post request
 @app.post("/upload/")
-async def upload_image(file:UploadFile = File(...)):
+async def upload_image(file: UploadFile = File(...)):
     image_path = os.path.join(IMAGE_DIR, file.filename)
     with open(image_path, "wb") as image_file:
         content = await file.read()
@@ -32,3 +32,6 @@ async def get_all_images(index:int):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000) #need to update to what port works
+#create client file
+#upload image, not download
+
