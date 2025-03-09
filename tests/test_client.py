@@ -1,37 +1,67 @@
+import os
 import requests
+import time
 
-SERVER_URL = "http://127.0.0.1:8000"
+# Server details
+SERVER_URL = "http://172.31.100.101:8000"
+IMAGE_DIR = "downloaded_images"
 
+# Ensure local directory exists
+if not os.path.exists(IMAGE_DIR):
+    os.makedirs(IMAGE_DIR)
 
-def upload_image(image_path):
-    url = f"{SERVER_URL}/upload/"
-    with open(image_path, "rb") as image_file:
-        files = {"file": (image_path, image_file, "multipart/form-data")}
-        response = requests.post(url, files=files)
+def get_image_list():
+    response = requests.post(f"{SERVER_URL}/images/", json={})  # Send an empty JSON body
     if response.status_code == 200:
-        print(f"Image uploaded successfully: {response.json()}")
-        return response.json().get("filename")
+        return response.json()["images"]
     else:
-        print(f"Failed to upload image. Status code: {response.status_code}")
-        return None
+        print("Failed to fetch image list.")
+        return []
 
-
-# Function to get an image by index
-def get_image_by_index(index):
-    url = f"{SERVER_URL}/images/"
-    params = {"index": index}  # Passing the index as a query parameter
-    response = requests.post(url, params=params)
-
+# Get the list of images from the server
+def get_image_list():
+    response = requests.get(f"{SERVER_URL}/images/")
     if response.status_code == 200:
-        filename = response.headers.get('Content-Disposition').split('=')[1].strip('"')
-        with open(f"downloaded_{filename}", "wb") as file:
-            file.write(response.content)
-        print(f"Image downloaded successfully as 'downloaded_{filename}'")
+        return response.json()["images"]
     else:
-        print(f"Failed to retrieve image. Status code: {response.status_code}, Error: {response.json()}")
+        print("Failed to fetch image list.")
+        return []
 
+# Download images and measure transfer time
+def download_images():
+    image_list = get_image_list()
+    if not image_list:
+        print("No images to download.")
+        return
+
+    print(f"Found {len(image_list)} images. Downloading...")
+
+    transfer_times = []
+
+    for image_name in image_list:
+        start_time = time.time()
+        response = requests.get(f"{SERVER_URL}/images/{image_name}")
+
+        if response.status_code == 200:
+            image_path = os.path.join(IMAGE_DIR, image_name)
+            with open(image_path, "wb") as img_file:
+                img_file.write(response.content)
+
+            end_time = time.time()
+            transfer_time = end_time - start_time
+            transfer_times.append((image_name, transfer_time))
+
+            print(f"Downloaded {image_name} in {transfer_time:.4f} seconds")
+        else:
+            print(f"Failed to download {image_name}")
+
+    # Log the transfer times
+    with open("transfer_times.txt", "w") as log_file:
+        for image_name, time_taken in transfer_times:
+            log_file.write(f"{image_name}: {time_taken:.4f} seconds\n")
+
+    print("Download complete. Transfer times logged in 'transfer_times.txt'.")
 
 if __name__ == "__main__":
-    # First, upload an image
-    image_path = "path_to_your_image.jpg"  # Provide the path to the image you want to upload
-    filename = upload_image(image_path)
+    download_images()
+
